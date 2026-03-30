@@ -18,6 +18,7 @@ const state = {
   pressedKeys: new Set(),
   mediaRecorder: null,
   recordedChunks: [],
+  gifFrames: [],       // captured ImageData for GIF export
   animationId: null,
   lastFrameTime: 0,
 };
@@ -110,6 +111,7 @@ function createLayer(assetId, name) {
       height: 80,         // peak height in pixels
       duration: 0.5,      // total jump duration in seconds
       hSpeed: 0,          // horizontal speed during jump (px/frame), sign follows active direction
+      unlimited: false,    // if true, can jump again while in the air (Spiderman mode)
     },
     // Jump runtime state
     _jump: {
@@ -572,6 +574,11 @@ function animationLoop(timestamp) {
   // Render
   renderCanvas();
 
+  // Capture GIF frame if recording
+  if (state.recording) {
+    state.gifFrames.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  }
+
   // Advance frame
   state.currentFrame++;
   if (state.currentFrame >= state.totalFrames) {
@@ -630,6 +637,7 @@ function stopAll() {
 function startRecording() {
   const stream = canvas.captureStream(state.fps);
   state.recordedChunks = [];
+  state.gifFrames = [];
 
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
     ? 'video/webm;codecs=vp9'
@@ -680,7 +688,38 @@ function showExportModal() {
   };
 
   $('#btn-export-gif').onclick = () => {
-    alert('Export GIF nécessite une librairie externe (gif.js). Pour l\'instant, utilisez le format WebM.');
+    if (state.gifFrames.length === 0) {
+      alert('Aucune frame capturée. Lancez un enregistrement d\'abord.');
+      return;
+    }
+
+    const btn = $('#btn-export-gif');
+    btn.textContent = 'Encodage GIF... 0%';
+    btn.disabled = true;
+
+    // Run async to not block UI
+    setTimeout(() => {
+      const encoder = new GifEncoder(canvas.width, canvas.height, 1000 / state.fps);
+      for (const frame of state.gifFrames) {
+        encoder.addFrameData(frame);
+      }
+      const gifBlob = encoder.encode((percent) => {
+        btn.textContent = `Encodage GIF... ${percent}%`;
+      });
+
+      const gifUrl = URL.createObjectURL(gifBlob);
+      const a = document.createElement('a');
+      a.href = gifUrl;
+      a.download = 'pixel-animation.gif';
+      a.click();
+
+      btn.textContent = 'Télécharger GIF';
+      btn.disabled = false;
+
+      // Also show preview
+      const preview = $('#export-preview');
+      preview.innerHTML = `<img src="${gifUrl}" style="max-width:100%" alt="GIF Preview">`;
+    }, 50);
   };
 
   $('#export-modal').classList.remove('hidden');
