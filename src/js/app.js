@@ -30,6 +30,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 const canvas = $('#main-canvas');
 const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
 const timelineCanvas = $('#timeline-canvas');
 const timelineCtx = timelineCanvas.getContext('2d');
 
@@ -180,7 +181,49 @@ function moveLayerZ(id, direction) {
 
 // ── Rendering ──────────────────────────────────
 
+function getLayerBounds(layer) {
+  const asset = getAsset(layer.assetId);
+  if (!asset) return null;
+  let w, h;
+  if (layer.sprite.enabled) {
+    w = layer.sprite.frameWidth * layer.scaleX;
+    h = layer.sprite.frameHeight * layer.scaleY;
+  } else {
+    w = asset.img.width * layer.scaleX;
+    h = asset.img.height * layer.scaleY;
+  }
+  return { x: layer.x, y: layer.y, w, h };
+}
+
+function autoResizeCanvas() {
+  const minW = parseInt($('#canvas-width').value) || 640;
+  const minH = parseInt($('#canvas-height').value) || 480;
+  let maxW = minW;
+  let maxH = minH;
+
+  for (const layer of state.layers) {
+    if (!layer.visible) continue;
+    const b = getLayerBounds(layer);
+    if (!b) continue;
+    const right = Math.ceil(b.x + b.w);
+    const bottom = Math.ceil(b.y + b.h);
+    if (right > maxW) maxW = right;
+    if (bottom > maxH) maxH = bottom;
+  }
+
+  if (canvas.width !== maxW || canvas.height !== maxH) {
+    canvas.width = maxW;
+    canvas.height = maxH;
+    // Resizing canvas resets context state — re-disable smoothing for pixel art
+    ctx.imageSmoothingEnabled = false;
+    $('#canvas-size').textContent = `${maxW} × ${maxH}`;
+  }
+}
+
 function renderCanvas() {
+  // Auto-resize canvas to fit all layers
+  autoResizeCanvas();
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Sort layers by z-index
@@ -1313,6 +1356,8 @@ if (typeof window !== 'undefined') {
     selectLayer,
     moveLayerZ,
     renderCanvas,
+    getLayerBounds,
+    autoResizeCanvas,
     addKeyframe,
     interpolateKeyframes,
     applyKeyframesAtFrame,

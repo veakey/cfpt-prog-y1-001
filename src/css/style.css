@@ -358,16 +358,18 @@ body {
 .canvas-wrapper {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: auto;
   position: relative;
   background: repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 32px 32px;
 }
 
 #main-canvas {
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   cursor: crosshair;
+  flex-shrink: 0;
 }
 
 .canvas-overlay {

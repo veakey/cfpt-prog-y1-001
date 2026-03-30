@@ -807,6 +807,62 @@ resetState();
   assert(noError, 'renderCanvas: pas d\'erreur avec calque sans asset');
 }
 
+section('Test Fonctionnel: Auto-resize canvas (scale x10)');
+resetState();
+{
+  // Create a fake 16x16 asset
+  const img = new Image();
+  img.width = 16;
+  img.height = 16;
+  const asset = { id: app.genId(), name: 'small.png', img, src: 'data:,' };
+  app.state.assets.push(asset);
+
+  const layer = app.createLayer(asset.id, 'ScaleTest');
+  layer.x = 0;
+  layer.y = 0;
+  layer.scaleX = 10;
+  layer.scaleY = 10;
+
+  // Image scaled = 160x160, within default 640x480 → no resize
+  const bounds = app.getLayerBounds(layer);
+  assertEqual(bounds.w, 160, 'auto-resize: bounds width = 16*10 = 160');
+  assertEqual(bounds.h, 160, 'auto-resize: bounds height = 16*10 = 160');
+
+  // Now scale to exceed canvas
+  layer.scaleX = 50;
+  layer.scaleY = 50;
+  // 16*50 = 800, exceeds 640
+  app.autoResizeCanvas();
+  const c = document.getElementById('main-canvas');
+  assert(c.width >= 800, 'auto-resize: canvas width >= 800 quand layer dépasse');
+  assert(c.height >= 800, 'auto-resize: canvas height >= 800 quand layer dépasse');
+
+  // Reset canvas for other tests
+  c.width = 640;
+  c.height = 480;
+}
+
+section('Test Fonctionnel: getLayerBounds avec sprite');
+resetState();
+{
+  const img = new Image();
+  img.width = 128;
+  img.height = 128;
+  const asset = { id: app.genId(), name: 'sheet.png', img, src: 'data:,' };
+  app.state.assets.push(asset);
+
+  const layer = app.createLayer(asset.id, 'SpriteBoundsTest');
+  layer.sprite.enabled = true;
+  layer.sprite.frameWidth = 32;
+  layer.sprite.frameHeight = 32;
+  layer.scaleX = 3;
+  layer.scaleY = 3;
+
+  const bounds = app.getLayerBounds(layer);
+  assertEqual(bounds.w, 96, 'sprite bounds: 32*3 = 96');
+  assertEqual(bounds.h, 96, 'sprite bounds: 32*3 = 96');
+}
+
 section('Test Fonctionnel: Rec Mode');
 resetState();
 {
