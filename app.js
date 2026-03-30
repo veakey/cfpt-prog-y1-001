@@ -960,6 +960,11 @@ function renderBindingsEditor() {
         <span class="muted">px/f</span>
       </div>
       <div class="binding-row binding-anim-row">
+        <label>Illimité:</label>
+        <input type="checkbox" id="jump-unlimited" ${layer.jump.unlimited ? 'checked' : ''} title="Permet de re-sauter en l'air (mode Spiderman)">
+        <span class="muted">mode Spiderman</span>
+      </div>
+      <div class="binding-row binding-anim-row">
         <label>Sprite row:</label>
         <input type="number" data-dir="jump" data-field="spriteRow" value="${jumpSpriteRow}" min="0" max="20" placeholder="—">
       </div>
@@ -1044,9 +1049,11 @@ function renderBindingsEditor() {
   const jumpHeight = container.querySelector('#jump-height');
   const jumpDuration = container.querySelector('#jump-duration');
   const jumpHSpeed = container.querySelector('#jump-hspeed');
+  const jumpUnlimited = container.querySelector('#jump-unlimited');
   if (jumpHeight) jumpHeight.addEventListener('change', (e) => { layer.jump.height = parseFloat(e.target.value) || 80; });
   if (jumpDuration) jumpDuration.addEventListener('change', (e) => { layer.jump.duration = parseFloat(e.target.value) || 0.5; });
   if (jumpHSpeed) jumpHSpeed.addEventListener('change', (e) => { layer.jump.hSpeed = parseFloat(e.target.value) || 0; });
+  if (jumpUnlimited) jumpUnlimited.addEventListener('change', (e) => { layer.jump.unlimited = e.target.checked; });
 }
 
 function renderSpriteConfig() {

@@ -557,6 +557,110 @@ resetState();
   assertEqual(app.isJumping(layer), false, 'isJumping: false après fin du saut');
 }
 
+section('Saut - Illimité (Spiderman)');
+resetState();
+{
+  const layer = app.createLayer(null, 'JumpUnlimitedTest');
+  layer.bindings.jump.key = ' ';
+  layer.jump.height = 60;
+  layer.jump.duration = 0.5;
+  layer.jump.unlimited = true;
+  layer.y = 200;
+
+  app.state.fps = 30;
+
+  // First jump
+  app.state.pressedKeys.add(' ');
+  app.processBindings();
+  assert(app.isJumping(layer), 'saut illimité: premier saut actif');
+  const origin1 = layer._jump.originY;
+
+  // Advance a few frames while in air
+  app.state.pressedKeys.clear();
+  for (let i = 0; i < 5; i++) app.processBindings();
+  assert(app.isJumping(layer), 'saut illimité: toujours en l\'air');
+  const midAirY = layer.y;
+
+  // Re-press jump while in the air — should restart from current position
+  app.state.pressedKeys.add(' ');
+  app.processBindings();
+  assert(app.isJumping(layer), 'saut illimité: re-saut actif');
+  assertEqual(layer._jump.originY, midAirY, 'saut illimité: originY = position en l\'air');
+  assertEqual(layer._jump.elapsed > 0, true, 'saut illimité: elapsed réinitialisé (petit dt)');
+
+  app.state.pressedKeys.clear();
+}
+
+section('Saut - Unlimited false bloque le double saut');
+resetState();
+{
+  const layer = app.createLayer(null, 'JumpNormalTest');
+  layer.bindings.jump.key = 'j';
+  layer.jump.unlimited = false;
+  layer.y = 100;
+
+  app.state.fps = 30;
+
+  // Jump
+  app.state.pressedKeys.add('j');
+  app.processBindings();
+  assert(app.isJumping(layer), 'saut normal: actif');
+
+  // Release and re-press while in air
+  app.state.pressedKeys.clear();
+  app.processBindings(); // process clears _keyHeld
+  app.state.pressedKeys.add('j');
+  app.processBindings();
+
+  // originY should NOT have changed (double jump blocked)
+  assertEqual(layer._jump.originY, 100, 'saut normal: pas de re-saut en l\'air');
+
+  app.state.pressedKeys.clear();
+}
+
+section('GIF Encoder');
+{
+  // Create a small test canvas
+  const testCanvas = document.createElement('canvas');
+  testCanvas.width = 4;
+  testCanvas.height = 4;
+  const testCtx = testCanvas.getContext('2d');
+
+  // Draw a simple red frame
+  testCtx.fillStyle = '#ff0000';
+  testCtx.fillRect(0, 0, 4, 4);
+
+  const encoder = new GifEncoder(4, 4, 100);
+  encoder.addFrame(testCanvas);
+
+  // Draw a blue frame
+  testCtx.fillStyle = '#0000ff';
+  testCtx.fillRect(0, 0, 4, 4);
+  encoder.addFrame(testCanvas);
+
+  const blob = encoder.encode();
+  assert(blob instanceof Blob, 'GIF encoder: retourne un Blob');
+  assert(blob.size > 0, 'GIF encoder: Blob non vide');
+  assertEqual(blob.type, 'image/gif', 'GIF encoder: type = image/gif');
+
+  // Verify GIF header
+  const reader = new FileReader();
+  reader.onload = () => {
+    const arr = new Uint8Array(reader.result);
+    const header = String.fromCharCode(...arr.slice(0, 6));
+    assert(header === 'GIF89a', 'GIF encoder: header = GIF89a');
+    // Check trailer
+    assertEqual(arr[arr.length - 1], 0x3B, 'GIF encoder: trailer = 0x3B');
+
+    // Add result to page
+    const resultDiv = document.createElement('div');
+    resultDiv.className = 'test pass';
+    resultDiv.textContent = `✓ GIF encoder: ${blob.size} octets, ${encoder.frames.length} frames`;
+    results.appendChild(resultDiv);
+  };
+  reader.readAsArrayBuffer(blob);
+}
+
 section('Sprite Sheet Configuration');
 resetState();
 {
