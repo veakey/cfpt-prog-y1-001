@@ -10,24 +10,46 @@ Outil web pour animer vos créations pixel art ! Chargez vos PNG, configurez des
 4. Configurer les bindings clavier dans le panneau de droite
 5. Appuyer sur **Play** (ou Espace) pour animer !
 
+## Structure du projet
+
+```
+pixel-art/
+├── index.html              ← Page principale (ouvrir dans le navigateur)
+├── README.md               ← Ce fichier
+├── src/
+│   ├── css/
+│   │   └── style.css       ← Styles Glass UI
+│   └── js/
+│       ├── app.js          ← Moteur d'animation (calques, bindings, keyframes)
+│       └── gif-encoder.js  ← Encodeur GIF89a pur JavaScript
+├── tests/
+│   ├── index.html          ← Page de tests (ouvrir dans le navigateur)
+│   └── tests.js            ← Tests unitaires & fonctionnels
+└── assets/                 ← Dossier pour vos PNG pixel art
+```
+
 ## Architecture de l'application
 
 ```mermaid
 graph TB
     subgraph Fichiers
-        HTML[index.html<br/>Structure de la page]
-        CSS[style.css<br/>Glass UI & Layout]
-        JS[app.js<br/>Logique & Moteur]
-        TEST[tests.js + tests.html<br/>Tests unitaires & fonctionnels]
+        HTML[index.html<br/>Page principale]
+        CSS[src/css/style.css<br/>Glass UI & Layout]
+        JS[src/js/app.js<br/>Moteur d'animation]
+        GIF[src/js/gif-encoder.js<br/>Encodeur GIF]
+        TEST[tests/<br/>Tests unitaires & fonctionnels]
     end
 
     HTML --> CSS
+    HTML --> GIF
     HTML --> JS
+    TEST --> GIF
     TEST --> JS
 
     style HTML fill:#7c5cfc,color:#fff
     style CSS fill:#fc5c9c,color:#fff
     style JS fill:#5cfc7c,color:#000
+    style GIF fill:#5ccffc,color:#000
     style TEST fill:#fccc5c,color:#000
 ```
 
@@ -252,7 +274,7 @@ Le bouton **Rec** enregistre tout ce qui se passe sur le canvas en vidéo **WebM
 
 ## Tests
 
-Ouvrir `tests.html` dans un navigateur pour exécuter la suite de tests unitaires et fonctionnels.
+Ouvrir `tests/index.html` dans un navigateur pour exécuter la suite de tests unitaires et fonctionnels.
 
 ```mermaid
 graph LR
