@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Art Animator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="glass header">
+      <h1>🎮 Pixel Art Animator</h1>
+      <div class="header-controls">
+        <button id="btn-play" class="btn" title="Play (Space)">▶ Play</button>
+        <button id="btn-stop" class="btn" title="Stop">⏹ Stop</button>
+        <button id="btn-record" class="btn btn-record" title="Record">⏺ Rec</button>
+        <span id="fps-display" class="badge">30 FPS</span>
+        <label class="fps-label">
+          FPS: <input type="range" id="fps-slider" min="1" max="60" value="30">
+        </label>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <!-- Left sidebar: Assets & Layers -->
+      <aside class="glass sidebar sidebar-left">
+        <section class="panel">
+          <h2>Assets</h2>
+          <div id="asset-drop-zone" class="drop-zone">
+            <p>Glisser des PNG ici</p>
+            <p>ou</p>
+            <button id="btn-load-assets" class="btn btn-small">Parcourir</button>
+            <input type="file" id="file-input" accept="image/png" multiple hidden>
+          </div>
+          <div id="asset-list" class="asset-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Calques</h2>
+          <div id="layer-list" class="layer-list"></div>
+          <button id="btn-add-layer" class="btn btn-small btn-full">+ Calque</button>
+        </section>
+      </aside>
+
+      <!-- Center: Canvas -->
+      <main class="canvas-container">
+        <div class="canvas-wrapper glass">
+          <canvas id="main-canvas" width="640" height="480"></canvas>
+          <div id="canvas-overlay" class="canvas-overlay"></div>
+        </div>
+        <div class="canvas-info glass">
+          <span id="mouse-pos">x: 0, y: 0</span>
+          <span id="canvas-size">640 × 480</span>
+          <label>
+            Largeur: <input type="number" id="canvas-width" value="640" min="64" max="1920" step="1">
+          </label>
+          <label>
+            Hauteur: <input type="number" id="canvas-height" value="480" min="64" max="1080" step="1">
+          </label>
+          <button id="btn-resize-canvas" class="btn btn-small">Appliquer</button>
+        </div>
+      </main>
+
+      <!-- Right sidebar: Bindings & Properties -->
+      <aside class="glass sidebar sidebar-right">
+        <section class="panel">
+          <h2>Propriétés du calque</h2>
+          <div id="layer-props" class="layer-props">
+            <p class="muted">Sélectionnez un calque</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Bindings</h2>
+          <div id="bindings-editor" class="bindings-editor">
+            <p class="muted">Sélectionnez un calque pour configurer les contrôles</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Animation (Sprite Sheet)</h2>
+          <div id="sprite-config" class="sprite-config">
+            <p class="muted">Sélectionnez un calque avec un sprite sheet</p>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- Bottom: Timeline -->
+    <footer class="glass timeline-bar">
+      <div class="timeline-controls">
+        <button id="btn-rec-mode" class="btn btn-small">🔴 Mode Enregistrement</button>
+        <button id="btn-clear-keyframes" class="btn btn-small">Effacer keyframes</button>
+        <span id="frame-counter" class="badge">Frame: 0</span>
+        <span id="time-display" class="badge">0.00s</span>
+      </div>
+      <div id="timeline" class="timeline">
+        <canvas id="timeline-canvas" height="60"></canvas>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal: Export -->
+  <div id="export-modal" class="modal hidden">
+    <div class="modal-content glass">
+      <h2>Export</h2>
+      <div id="export-preview"></div>
+      <div class="export-actions">
+        <button id="btn-export-webm" class="btn">Télécharger WebM</button>
+        <button id="btn-export-gif" class="btn">Télécharger GIF</button>
+        <button id="btn-export-close" class="btn">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
