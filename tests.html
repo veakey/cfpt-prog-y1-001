@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Pixel Art Animator - Tests</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #e8e8f0;
+      padding: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 { color: #7c5cfc; margin-bottom: 20px; }
+    h2 { color: #9b7fff; margin: 20px 0 10px; font-size: 1.1rem; }
+    .test { padding: 6px 12px; margin: 3px 0; border-radius: 6px; font-size: 0.9rem; }
+    .pass { background: rgba(92, 252, 124, 0.1); border-left: 3px solid #5cfc7c; }
+    .fail { background: rgba(252, 92, 124, 0.1); border-left: 3px solid #fc5c7c; }
+    .summary {
+      margin-top: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .summary.all-pass { background: rgba(92, 252, 124, 0.15); color: #5cfc7c; }
+    .summary.has-fail { background: rgba(252, 92, 124, 0.15); color: #fc5c7c; }
+    .error-detail { color: #fc5c7c; font-size: 0.8rem; margin-left: 20px; }
+  </style>
+</head>
+<body>
+  <!-- Hidden canvas and elements needed by app.js -->
+  <div style="display:none">
+    <canvas id="main-canvas" width="640" height="480"></canvas>
+    <canvas id="timeline-canvas" width="800" height="60"></canvas>
+    <div id="asset-list"></div>
+    <div id="layer-list"></div>
+    <div id="layer-props"></div>
+    <div id="bindings-editor"></div>
+    <div id="sprite-config"></div>
+    <div id="mouse-pos"></div>
+    <div id="canvas-size"></div>
+    <div id="frame-counter"></div>
+    <div id="time-display"></div>
+    <div id="fps-display"></div>
+    <div id="export-preview"></div>
+    <div id="export-modal" class="hidden"></div>
+    <div class="canvas-wrapper"><div id="canvas-overlay"></div></div>
+    <div id="asset-drop-zone"><p></p><p></p><button id="btn-load-assets"></button></div>
+    <input type="file" id="file-input" hidden>
+    <button id="btn-add-layer"></button>
+    <button id="btn-play"></button>
+    <button id="btn-stop"></button>
+    <button id="btn-record"></button>
+    <button id="btn-rec-mode"></button>
+    <button id="btn-clear-keyframes"></button>
+    <button id="btn-resize-canvas"></button>
+    <button id="btn-export-webm"></button>
+    <button id="btn-export-gif"></button>
+    <button id="btn-export-close"></button>
+    <input type="range" id="fps-slider" value="30">
+    <input type="number" id="canvas-width" value="640">
+    <input type="number" id="canvas-height" value="480">
+    <div class="timeline"></div>
+  </div>
+
+  <h1>Pixel Art Animator - Tests</h1>
+  <div id="results"></div>
+
+  <script src="app.js"></script>
+  <script src="tests.js"></script>
+</body>
+</html>

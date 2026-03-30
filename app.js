@@ -98,10 +98,30 @@ function createLayer(assetId, name) {
     scaleX: 1,
     scaleY: 1,
     bindings: {
-      up:    { key: null, action: 'move', dx: 0, dy: -4 },
-      down:  { key: null, action: 'move', dx: 0, dy: 4 },
-      left:  { key: null, action: 'move', dx: -4, dy: 0 },
-      right: { key: null, action: 'move', dx: 4, dy: 0 },
+      up:    { key: null, action: 'move', dx: 0, dy: -4, spriteRow: null, assetIds: [] },
+      down:  { key: null, action: 'move', dx: 0, dy: 4, spriteRow: null, assetIds: [] },
+      left:  { key: null, action: 'move', dx: -4, dy: 0, spriteRow: null, assetIds: [] },
+      right: { key: null, action: 'move', dx: 4, dy: 0, spriteRow: null, assetIds: [] },
+      idle:  { spriteRow: null, assetIds: [], assetFrame: 0 },
+      jump:  { key: null, spriteRow: null, assetIds: [] },
+    },
+    // Jump configuration
+    jump: {
+      height: 80,         // peak height in pixels
+      duration: 0.5,      // total jump duration in seconds
+      hSpeed: 0,          // horizontal speed during jump (px/frame), sign follows active direction
+    },
+    // Jump runtime state
+    _jump: {
+      active: false,
+      elapsed: 0,         // time since jump start
+      originY: 0,         // y position when jump started
+    },
+    // Directional animation state (managed by processBindings)
+    _dirAnim: {
+      activeDir: null,     // currently active direction or null (idle)
+      frameIndex: 0,       // current frame within the direction's animation
+      elapsed: 0,          // time accumulator for frame cycling
     },
     sprite: {
       enabled: false,
@@ -278,14 +298,21 @@ function clearKeyframes(layerId) {
 // ── Input Handling ─────────────────────────────
 
 function processBindings() {
+  const dt = 1 / state.fps;
+
   for (const layer of state.layers) {
     if (!layer.visible) continue;
-    for (const dir in layer.bindings) {
+    const da = layer._dirAnim;
+    let activeDir = null;
+
+    // Find first active direction (priority: up > down > left > right, but last pressed wins visually)
+    for (const dir of ['up', 'down', 'left', 'right']) {
       const binding = layer.bindings[dir];
       if (!binding.key) continue;
       if (state.pressedKeys.has(binding.key)) {
         layer.x += binding.dx;
         layer.y += binding.dy;
+        activeDir = dir;
 
         // Auto-record keyframes in rec mode
         if (state.recMode && state.playing) {
@@ -293,7 +320,129 @@ function processBindings() {
         }
       }
     }
+
+    // Handle directional animation
+    const prevDir = da.activeDir;
+
+    if (activeDir !== prevDir) {
+      // Direction changed — reset animation
+      da.activeDir = activeDir;
+      da.frameIndex = 0;
+      da.elapsed = 0;
+    }
+
+    const currentDir = da.activeDir || 'idle';
+    const binding = layer.bindings[currentDir];
+
+    if (!binding) continue;
+
+    // Mode 1: Sprite sheet rows — set the sprite row for this direction
+    if (binding.spriteRow !== null && binding.spriteRow !== undefined && layer.sprite.enabled) {
+      const s = layer.sprite;
+      const framesInRow = s.columns;
+
+      // Advance animation timer
+      if (activeDir) {
+        da.elapsed += dt;
+        const frameDuration = 1 / s.animSpeed;
+        if (da.elapsed >= frameDuration) {
+          da.elapsed -= frameDuration;
+          da.frameIndex = (da.frameIndex + 1) % framesInRow;
+        }
+      } else {
+        da.frameIndex = 0; // idle = first frame of idle row
+      }
+
+      // Set sprite currentFrame = row * columns + frameIndex
+      s.currentFrame = binding.spriteRow * s.columns + da.frameIndex;
+    }
+
+    // Mode 2: Separate asset list — swap the layer's displayed asset
+    if (binding.assetIds && binding.assetIds.length > 0) {
+      if (activeDir) {
+        da.elapsed += dt;
+        const frameDuration = 1 / (layer.sprite.animSpeed || 8);
+        if (da.elapsed >= frameDuration) {
+          da.elapsed -= frameDuration;
+          da.frameIndex = (da.frameIndex + 1) % binding.assetIds.length;
+        }
+      } else {
+        // Idle: use assetFrame index or first asset
+        da.frameIndex = binding.assetFrame || 0;
+      }
+
+      const newAssetId = binding.assetIds[da.frameIndex];
+      if (newAssetId !== undefined && getAsset(newAssetId)) {
+        layer.assetId = newAssetId;
+      }
+    }
+
+    // ── Jump ──────────────────────────────────
+    const jb = layer.bindings.jump;
+    const j = layer._jump;
+
+    // Trigger jump on key press (only if not already jumping)
+    if (jb.key && state.pressedKeys.has(jb.key) && !j.active) {
+      j.active = true;
+      j.elapsed = 0;
+      j.originY = layer.y;
+    }
+
+    // Process active jump — parabolic arc: y = originY - height * sin(π * t/duration)
+    if (j.active) {
+      j.elapsed += dt;
+      const t = j.elapsed / layer.jump.duration; // normalized 0→1
+
+      if (t >= 1) {
+        // Jump finished — snap back to origin
+        layer.y = j.originY;
+        j.active = false;
+        j.elapsed = 0;
+      } else {
+        // Parabolic arc using sin: peaks at t=0.5
+        const arc = Math.sin(t * Math.PI);
+        layer.y = j.originY - layer.jump.height * arc;
+
+        // Horizontal drift during jump (follows last active direction)
+        if (layer.jump.hSpeed !== 0) {
+          const sign = (activeDir === 'left') ? -1 : (activeDir === 'right') ? 1 :
+                       (da.activeDir === 'left') ? -1 : (da.activeDir === 'right') ? 1 : 0;
+          layer.x += layer.jump.hSpeed * sign;
+        }
+      }
+
+      // Jump sprite row / assets
+      if (jb.spriteRow !== null && jb.spriteRow !== undefined && layer.sprite.enabled) {
+        const s = layer.sprite;
+        const framesInRow = s.columns;
+        // Map jump progress to sprite frames in this row
+        const jumpFrame = Math.floor(t * framesInRow) % framesInRow;
+        s.currentFrame = jb.spriteRow * s.columns + jumpFrame;
+      }
+      if (jb.assetIds && jb.assetIds.length > 0) {
+        const t01 = j.elapsed / layer.jump.duration;
+        const jumpFrameIdx = Math.min(
+          Math.floor(t01 * jb.assetIds.length),
+          jb.assetIds.length - 1
+        );
+        const jumpAssetId = jb.assetIds[jumpFrameIdx];
+        if (getAsset(jumpAssetId)) layer.assetId = jumpAssetId;
+      }
+
+      // Auto-record keyframes in rec mode
+      if (state.recMode && state.playing) {
+        addKeyframe(layer.id, state.currentFrame);
+      }
+    }
   }
+}
+
+function getActiveDirection(layer) {
+  return layer._dirAnim.activeDir;
+}
+
+function isJumping(layer) {
+  return layer._jump.active;
 }
 
 // Mouse drag
@@ -378,6 +527,19 @@ document.addEventListener('keyup', (e) => {
 function updateSpriteAnimations(dt) {
   for (const layer of state.layers) {
     if (!layer.sprite.enabled || layer.sprite.frameCount <= 1) continue;
+
+    // Skip if directional animation is controlling the sprite
+    const hasDirectionalSprite = ['up', 'down', 'left', 'right', 'idle'].some(
+      dir => layer.bindings[dir] && layer.bindings[dir].spriteRow !== null && layer.bindings[dir].spriteRow !== undefined
+    );
+    if (hasDirectionalSprite) continue;
+
+    // Also skip if directional asset swapping is active
+    const hasDirectionalAssets = ['up', 'down', 'left', 'right', 'idle'].some(
+      dir => layer.bindings[dir] && layer.bindings[dir].assetIds && layer.bindings[dir].assetIds.length > 0
+    );
+    if (hasDirectionalAssets) continue;
+
     const s = layer.sprite;
     s._elapsed += dt;
     const frameDuration = 1 / s.animSpeed;
@@ -655,16 +817,119 @@ function renderBindingsEditor() {
     { key: 'right', label: '→ Droite' },
   ];
 
-  container.innerHTML = directions.map(d => {
+  // Build asset options for dropdowns
+  const assetOptions = state.assets.map(a =>
+    `<option value="${a.id}">${a.name}</option>`
+  ).join('');
+
+  let html = '';
+
+  // Direction bindings
+  for (const d of directions) {
     const b = layer.bindings[d.key];
-    return `
-      <div class="binding-row">
-        <label>${d.label}:</label>
-        <div class="binding-key" tabindex="0" data-dir="${d.key}">${b.key || 'Cliquer...'}</div>
-        <input type="number" data-dir="${d.key}" data-axis="speed" value="${Math.abs(b.dx || b.dy)}" min="1" max="50" title="Vitesse (px)">
+    const spriteRowVal = (b.spriteRow !== null && b.spriteRow !== undefined) ? b.spriteRow : '';
+    const assignedAssets = (b.assetIds || []).map(id => {
+      const a = getAsset(id);
+      return a ? `<span class="binding-asset-tag" data-dir="${d.key}" data-id="${id}">${a.name} ×</span>` : '';
+    }).join('');
+
+    html += `
+      <div class="binding-group">
+        <div class="binding-row">
+          <label>${d.label}:</label>
+          <div class="binding-key" tabindex="0" data-dir="${d.key}">${b.key || 'Cliquer...'}</div>
+          <input type="number" data-dir="${d.key}" data-axis="speed" value="${Math.abs(b.dx || b.dy)}" min="1" max="50" title="Vitesse (px)">
+        </div>
+        <div class="binding-row binding-anim-row">
+          <label>Sprite row:</label>
+          <input type="number" data-dir="${d.key}" data-field="spriteRow" value="${spriteRowVal}" min="0" max="20" placeholder="—" title="Ligne du sprite sheet pour cette direction">
+        </div>
+        <div class="binding-row binding-anim-row">
+          <label>Images:</label>
+          <select data-dir="${d.key}" data-field="addAsset" title="Ajouter un asset pour cette direction">
+            <option value="">+ Ajouter image...</option>
+            ${assetOptions}
+          </select>
+        </div>
+        <div class="binding-asset-list" data-dir="${d.key}">${assignedAssets}</div>
       </div>
     `;
+  }
+
+  // Idle binding
+  const idle = layer.bindings.idle;
+  const idleSpriteRow = (idle.spriteRow !== null && idle.spriteRow !== undefined) ? idle.spriteRow : '';
+  const idleAssets = (idle.assetIds || []).map(id => {
+    const a = getAsset(id);
+    return a ? `<span class="binding-asset-tag" data-dir="idle" data-id="${id}">${a.name} ×</span>` : '';
   }).join('');
+
+  html += `
+    <div class="binding-group binding-idle">
+      <div class="binding-row">
+        <label>😴 Idle:</label>
+        <span class="muted" style="font-size:0.75rem">Quand aucune touche n'est pressée</span>
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Sprite row:</label>
+        <input type="number" data-dir="idle" data-field="spriteRow" value="${idleSpriteRow}" min="0" max="20" placeholder="—">
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Images:</label>
+        <select data-dir="idle" data-field="addAsset">
+          <option value="">+ Ajouter image...</option>
+          ${assetOptions}
+        </select>
+      </div>
+      <div class="binding-asset-list" data-dir="idle">${idleAssets}</div>
+    </div>
+  `;
+
+  // Jump binding
+  const jb = layer.bindings.jump;
+  const jumpSpriteRow = (jb.spriteRow !== null && jb.spriteRow !== undefined) ? jb.spriteRow : '';
+  const jumpAssets = (jb.assetIds || []).map(id => {
+    const a = getAsset(id);
+    return a ? `<span class="binding-asset-tag" data-dir="jump" data-id="${id}">${a.name} ×</span>` : '';
+  }).join('');
+
+  html += `
+    <div class="binding-group binding-jump">
+      <div class="binding-row">
+        <label>🦘 Saut:</label>
+        <div class="binding-key" tabindex="0" data-dir="jump">${jb.key || 'Cliquer...'}</div>
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Hauteur:</label>
+        <input type="number" id="jump-height" value="${layer.jump.height}" min="1" max="500" title="Hauteur du saut (px)">
+        <span class="muted">px</span>
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Durée:</label>
+        <input type="number" id="jump-duration" value="${layer.jump.duration}" min="0.1" max="5" step="0.1" title="Durée du saut (secondes)">
+        <span class="muted">sec</span>
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Drift H:</label>
+        <input type="number" id="jump-hspeed" value="${layer.jump.hSpeed}" min="0" max="20" step="1" title="Déplacement horizontal pendant le saut (px/frame)">
+        <span class="muted">px/f</span>
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Sprite row:</label>
+        <input type="number" data-dir="jump" data-field="spriteRow" value="${jumpSpriteRow}" min="0" max="20" placeholder="—">
+      </div>
+      <div class="binding-row binding-anim-row">
+        <label>Images:</label>
+        <select data-dir="jump" data-field="addAsset">
+          <option value="">+ Ajouter image...</option>
+          ${assetOptions}
+        </select>
+      </div>
+      <div class="binding-asset-list" data-dir="jump">${jumpAssets}</div>
+    </div>
+  `;
+
+  container.innerHTML = html;
 
   // Key binding listeners
   container.querySelectorAll('.binding-key').forEach(el => {
@@ -697,6 +962,46 @@ function renderBindingsEditor() {
       if (dir === 'right') { b.dx = speed; b.dy = 0; }
     });
   });
+
+  // Sprite row listeners
+  container.querySelectorAll('input[data-field="spriteRow"]').forEach(el => {
+    el.addEventListener('change', (e) => {
+      const dir = e.target.dataset.dir;
+      const val = e.target.value.trim();
+      layer.bindings[dir].spriteRow = val === '' ? null : parseInt(val);
+    });
+  });
+
+  // Add asset to direction
+  container.querySelectorAll('select[data-field="addAsset"]').forEach(el => {
+    el.addEventListener('change', (e) => {
+      const dir = e.target.dataset.dir;
+      const assetId = parseInt(e.target.value);
+      if (!assetId || !getAsset(assetId)) return;
+      if (!layer.bindings[dir].assetIds) layer.bindings[dir].assetIds = [];
+      layer.bindings[dir].assetIds.push(assetId);
+      renderBindingsEditor(); // re-render to show the new tag
+    });
+  });
+
+  // Remove asset from direction (click on tag)
+  container.querySelectorAll('.binding-asset-tag').forEach(el => {
+    el.addEventListener('click', () => {
+      const dir = el.dataset.dir;
+      const id = parseInt(el.dataset.id);
+      const idx = layer.bindings[dir].assetIds.indexOf(id);
+      if (idx >= 0) layer.bindings[dir].assetIds.splice(idx, 1);
+      renderBindingsEditor();
+    });
+  });
+
+  // Jump parameter listeners
+  const jumpHeight = container.querySelector('#jump-height');
+  const jumpDuration = container.querySelector('#jump-duration');
+  const jumpHSpeed = container.querySelector('#jump-hspeed');
+  if (jumpHeight) jumpHeight.addEventListener('change', (e) => { layer.jump.height = parseFloat(e.target.value) || 80; });
+  if (jumpDuration) jumpDuration.addEventListener('change', (e) => { layer.jump.duration = parseFloat(e.target.value) || 0.5; });
+  if (jumpHSpeed) jumpHSpeed.addEventListener('change', (e) => { layer.jump.hSpeed = parseFloat(e.target.value) || 0; });
 }
 
 function renderSpriteConfig() {
@@ -961,6 +1266,8 @@ if (typeof window !== 'undefined') {
     applyKeyframesAtFrame,
     clearKeyframes,
     processBindings,
+    getActiveDirection,
+    isJumping,
     startPlay,
     stopPlay,
     togglePlay,

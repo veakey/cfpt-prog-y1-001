@@ -473,6 +473,82 @@ body {
   font-size: 0.8rem;
 }
 
+/* Binding groups & directional animation */
+.binding-group {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.binding-group:last-child {
+  border-bottom: none;
+}
+
+.binding-idle,
+.binding-jump {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin-top: 4px;
+}
+
+.binding-jump {
+  border-left: 2px solid var(--success);
+}
+
+.binding-anim-row {
+  padding-left: 12px;
+  opacity: 0.85;
+}
+
+.binding-anim-row label {
+  width: 70px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.binding-anim-row select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  flex: 1;
+  max-width: 130px;
+}
+
+.binding-anim-row input[type="number"] {
+  width: 45px;
+}
+
+.binding-asset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 12px;
+  margin-top: 2px;
+  min-height: 0;
+}
+
+.binding-asset-tag {
+  background: rgba(124, 92, 252, 0.2);
+  border: 1px solid rgba(124, 92, 252, 0.3);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.binding-asset-tag:hover {
+  background: rgba(252, 92, 124, 0.2);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 /* Sprite config */
 .sprite-config label {
   display: flex;
