@@ -118,6 +118,7 @@ function createLayer(assetId, name) {
       active: false,
       elapsed: 0,         // time since jump start
       originY: 0,         // y position when jump started
+      _keyHeld: false,     // tracks if jump key is currently held (for re-trigger detection)
     },
     // Directional animation state (managed by processBindings)
     _dirAnim: {
@@ -383,12 +384,17 @@ function processBindings() {
     const jb = layer.bindings.jump;
     const j = layer._jump;
 
-    // Trigger jump on key press (only if not already jumping)
-    if (jb.key && state.pressedKeys.has(jb.key) && !j.active) {
-      j.active = true;
-      j.elapsed = 0;
-      j.originY = layer.y;
+    // Trigger jump on key press
+    // Normal: only if not already jumping. Unlimited: can re-jump in the air.
+    if (jb.key && state.pressedKeys.has(jb.key) && !j._keyHeld) {
+      if (!j.active || layer.jump.unlimited) {
+        j.active = true;
+        j.elapsed = 0;
+        j.originY = layer.y; // restart arc from current position
+      }
     }
+    // Track held state to require key release between jumps
+    j._keyHeld = jb.key ? state.pressedKeys.has(jb.key) : false;
 
     // Process active jump — parabolic arc: y = originY - height * sin(π * t/duration)
     if (j.active) {
